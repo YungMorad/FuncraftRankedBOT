@@ -8,12 +8,14 @@ import me.dolla.teamranked.util.PropertiesReader;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceUpdateEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class QueueEloEvent extends ListenerAdapter {
 
@@ -34,14 +36,27 @@ public class QueueEloEvent extends ListenerAdapter {
 
         //Si qqun leave, on delete la queue
         if(!(event.getChannelLeft() == null) && event.getChannelLeft().getName().contains("Games")) {
-            VoiceChannel channelLeft = (VoiceChannel) event.getChannelLeft();
             Member leaveMember = event.getMember();
-            channelLeft.delete().queue();
             Game game = GameManager.getGame(leaveMember);
-            //Close la game et supprimer les channels
-            for(Member member : channelLeft.getMembers()) {
-                event.getGuild().moveVoiceMember(member, rankedWaitingChannel).queue();
+            VoiceChannel channelLeft = (VoiceChannel) event.getChannelLeft();
+            for (Member member : channelLeft.getMembers()) {
+                if (member.getVoiceState().inAudioChannel()) {
+                    event.getGuild().moveVoiceMember(member, rankedWaitingChannel).queue();
+                }
             }
+
+                for(VoiceChannel voiceChannel : event.getGuild().getVoiceChannels()) {
+                    if (voiceChannel != null && game != null && voiceChannel.getName().contains(game.getUUID())) {
+                        voiceChannel.delete().queue();
+                    }
+                }
+                for(TextChannel textChannel : event.getGuild().getTextChannels()) {
+                    if (textChannel != null && game != null && textChannel.getName().contains(game.getUUID())) {
+                        textChannel.delete().queue();
+                    }
+                }
+
+            //Close la game et supprimer les channels
             GameManager.closeGame(game);
             QueueState.setState(QueueState.WAITING);
         }
@@ -73,6 +88,7 @@ public class QueueEloEvent extends ListenerAdapter {
                         int size = gameMembers.size();
 
 
+                        //On sépare les teams
                         List<Member> team1m = gameMembers.subList(0, size/2);
                         ArrayList<Member> team1Members = new ArrayList<>(team1m);
                         System.out.println(team1m);
@@ -82,14 +98,23 @@ public class QueueEloEvent extends ListenerAdapter {
 
                         game.setTeam1members(team1Members);
                         game.setTeam1members(team2Members);
-                        GameManager.updateGameInformations(game, event.getGuild());
-
                         Random rand = new Random();
-                        int rdm = rand.nextInt(2);
+                        //On choisit un chiffre entre 0 -> 1 (bound)
+                        int rdm = rand.nextInt(1);
 
                         Member cap1 = team1m.get(rdm);
                         Member cap2 = team2m.get(rdm);
+                        game.setCap1(cap1);
+                        game.setCap2(cap2);
+                        GameManager.updateGameInformations(game, event.getGuild());
+
                         //Création des teams avec les capitaines, lancement des picks
+                        QueueState.setState(QueueState.PICKING);
+                        gamesCat.createTextChannel("Games " + game.getUUID())
+                                .queue(textChannel -> {
+                                    textChannel.sendMessage("Choix des pick").queue();
+                                });
+
                     });
                 } else {
                     return;

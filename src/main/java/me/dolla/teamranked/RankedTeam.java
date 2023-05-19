@@ -7,6 +7,7 @@ import me.dolla.teamranked.commands.admin.EloCommand;
 import me.dolla.teamranked.commands.admin.UnRegisterCommand;
 import me.dolla.teamranked.database.MongoManager;
 import me.dolla.teamranked.events.BotReady;
+import me.dolla.teamranked.events.queues.PickEvent;
 import me.dolla.teamranked.events.queues.QueueEloEvent;
 import me.dolla.teamranked.games.GameManager;
 import me.dolla.teamranked.player.PlayerManager;
@@ -46,7 +47,7 @@ public class RankedTeam {
                 .setChunkingFilter(ChunkingFilter.ALL)
                 .setMemberCachePolicy(MemberCachePolicy.ALL)
                 .setActivity(Activity.listening("Divisions Rush"))
-                .addEventListeners(new RegisterCommand(), new UnRegisterCommand(), new EloCommand(), new UpdateCommand(), new BotReady(), new QueueEloEvent())
+                .addEventListeners(new RegisterCommand(), new UnRegisterCommand(), new EloCommand(), new UpdateCommand(), new BotReady(), new QueueEloEvent(), new PickEvent())
                 .build().awaitReady();
 
         Guild server = jda.getGuildById(new PropertiesReader().getProperty("guildId"));
@@ -76,8 +77,8 @@ public class RankedTeam {
                     .queue();
             server.upsertCommand("update", "Update ton profile")
                     .queue();
-            server.upsertCommand("gameinfo", "Permet de donner les informations d'une game")
-                    .addOption(OptionType.STRING, "gamesid", "L'ID de la game")
+            server.upsertCommand("gameinfo", "Permet de pick un joueur")
+                    .addOption(OptionType.MENTIONABLE, "name", "Mentionner le joueur que tu veux pick")
                     .queue();
             //Events
 

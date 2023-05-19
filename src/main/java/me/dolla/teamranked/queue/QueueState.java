@@ -3,7 +3,7 @@ package me.dolla.teamranked.queue;
 import java.util.Arrays;
 
 public enum QueueState {
-    WAITING, STARTING, PLAYING;
+    WAITING, STARTING, PICKING, PLAYING;
 
     private static QueueState state;
 

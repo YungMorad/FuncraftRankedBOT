@@ -3,6 +3,7 @@ package me.dolla.teamranked.games;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.model.Updates;
 import me.dolla.teamranked.RankedTeam;
 import me.dolla.teamranked.database.MongoManager;
 import me.dolla.teamranked.player.Player;
@@ -76,33 +77,28 @@ public class GameManager {
         MongoCollection<Document> collection = MongoManager.database.getCollection("Games");
         if(collection.find(Filters.eq("gameUUID", game.getUUID())).first() != null) {
             Document doc = collection.find(Filters.eq("gameUUID", game.getUUID())).first();
-            ArrayList<Member> members = new ArrayList<>();
-            for(String str : doc.getList("members", String.class)) {
-                for(Member member : guild.getMembersByEffectiveName(str, true)) {
-                    members.add(member);
-                }
-            }
-            game.setMembers(members);
 
-            game.setCap1(guild.getMembersByEffectiveName(doc.getString("cap1"), true).get(0));
-            game.setCap2(guild.getMembersByEffectiveName(doc.getString("cap2"), true).get(0));
-
-            ArrayList<Member> team1Members = new ArrayList<>();
-            for(String str : doc.getList("team1members", String.class)) {
-                for(Member member : guild.getMembersByEffectiveName(str, true)) {
-                    team1Members.add(member);
-                }
-            }
-            game.setTeam1members(team1Members);
+            doc.put("cap1", game.getCap1().getEffectiveName());
+            doc.put("cap2", game.getCap2().getEffectiveName());
 
 
-            ArrayList<Member> team2Members = new ArrayList<>();
-            for(String str : doc.getList("team2members", String.class)) {
-                for(Member member : guild.getMembersByEffectiveName(str, true)) {
-                    team2Members.add(member);
-                }
-            }
-            game.setTeam2members(team2Members);
+           // ArrayList<Member> team1Members = new ArrayList<>();
+            //for(String str : doc.getList("team1members", String.class)) {
+             //   for(Member member : guild.getMembersByEffectiveName(str, true)) {
+             //       team1Members.add(member);
+             //   }
+           // }
+           // game.setTeam1members(team1Members);
+
+
+           // ArrayList<Member> team2Members = new ArrayList<>();
+            //for(String str : doc.getList("team2members", String.class)) {
+             //   for(Member member : guild.getMembersByEffectiveName(str, true)) {
+               //     team2Members.add(member);
+              //  }
+           // }
+           // game.setTeam2members(team2Members);
+            collection.replaceOne(Filters.eq("gameUUID", game.getUUID()), doc, new ReplaceOptions().upsert(true));
         }
     }
 
@@ -111,16 +107,35 @@ public class GameManager {
     }
 
     public static Game getGame(Member member) {
-        return memberGameHashMap.get(member);
+        if(memberGameHashMap.containsKey(member)) {
+            return memberGameHashMap.get(member);
+        } else {
+            return null;
+        }
     }
 
     public static void closeGame(Game game) {
-        MongoCollection<Document> collection = MongoManager.database.getCollection("Games");
-        for(Member member : game.getMembers()) {
-            memberGameHashMap.remove(member);
+        if(game == null) {
+            return;
         }
-        uuidGameHashMap.remove(game.uuid);
+        MongoCollection<Document> collection = MongoManager.database.getCollection("Games");
+        if (game != null && game.getMembers() != null) {
+            for (Member member : game.getMembers()) {
+                if (memberGameHashMap != null && member != null && memberGameHashMap.containsKey(member)) {
+                    memberGameHashMap.remove(member);
+                }
+            }
+        }
+        if(game != null) {
+            if (uuidGameHashMap != null && game.getUUIDObj() != null) {
+                uuidGameHashMap.remove(game.getUUIDObj());
+            }
+        }
         collection.deleteOne(Filters.eq("gameUUID", game.getUUID()));
+    }
+
+    public static boolean isInGame(Member member) {
+        return memberGameHashMap.containsKey(member);
     }
 
 
